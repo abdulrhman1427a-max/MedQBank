@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MedQBank</title>
+  <style>
+    :root{--bg:#0b1020;--card:#121936;--muted:#9aa4c7;--text:#f6f7fb;--accent:#7c9cff;--ok:#31c48d;--bad:#f87171;--line:#273056}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0e1530);color:var(--text)}
+    .wrap{max-width:1050px;margin:auto;padding:24px}.hero{display:grid;grid-template-columns:1.2fr .8fr;gap:20px;align-items:center;padding:28px 0}
+    .badge{display:inline-block;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:#cbd5ff;font-size:13px}.hero h1{font-size:46px;line-height:1.05;margin:14px 0 10px}.hero p{color:var(--muted);font-size:18px;max-width:640px}
+    .panel,.card{background:rgba(18,25,54,.92);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+    .panel{padding:22px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{padding:14px;border-radius:14px;background:#0f1630;border:1px solid var(--line)}.stat b{font-size:24px;display:block}.stat span{color:var(--muted);font-size:12px}
+    .controls{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin:20px 0}.controls select,.controls button{padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#101731;color:var(--text);font-weight:600}.controls button{background:var(--accent);color:#0a1021;border:none;cursor:pointer}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0}.subject{padding:18px;cursor:pointer;transition:.2s}.subject:hover{transform:translateY(-2px);border-color:#5367b3}.subject h3{margin:0 0 8px}.subject p{margin:0;color:var(--muted);font-size:14px}
+    .quiz{display:none;margin-top:24px}.quiz.active{display:block}.qhead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.qmeta{color:var(--muted);font-size:14px}.question{font-size:24px;margin:8px 0 18px}.answers{display:grid;gap:10px}.ans{width:100%;text-align:left;padding:15px 16px;border-radius:12px;border:1px solid var(--line);background:#0f1630;color:var(--text);cursor:pointer}.ans:hover{border-color:#6377cc}.ans.correct{border-color:var(--ok);background:rgba(49,196,141,.12)}.ans.wrong{border-color:var(--bad);background:rgba(248,113,113,.12)}
+    .explain{display:none;margin-top:16px;padding:16px;border-radius:12px;background:#0d1430;border:1px solid var(--line);color:#dce3ff}.explain.show{display:block}.next{display:none;margin-top:14px;padding:12px 16px;border:0;border-radius:10px;background:var(--accent);font-weight:700;cursor:pointer}.next.show{display:inline-block}
+    .footer{color:var(--muted);font-size:13px;padding:28px 0 12px;text-align:center}
+    @media (max-width:800px){.hero{grid-template-columns:1fr}.hero h1{font-size:38px}.grid{grid-template-columns:1fr 1fr}.controls{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
+    @media (max-width:520px){.grid{grid-template-columns:1fr}.hero h1{font-size:34px}.stats{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <span class="badge">Medical MCQ Practice</span>
+        <h1>MedQBank</h1>
+        <p>Practice high-yield medical questions by subject, review explanations, track your score, and build exam confidence.</p>
+      </div>
+      <div class="panel">
+        <div class="stats">
+          <div class="stat"><b id="done">0</b><span>Questions answered</span></div>
+          <div class="stat"><b id="correct">0</b><span>Correct</span></div>
+          <div class="stat"><b id="accuracy">0%</b><span>Accuracy</span></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="controls">
+      <select id="subjectSelect">
+        <option value="all">All subjects</option>
+        <option>Physiology</option><option>Pathology</option><option>Pharmacology</option><option>Biochemistry</option><option>Microbiology</option><option>Anatomy</option>
+      </select>
+      <select id="difficulty"><option>Mixed difficulty</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
+      <button id="startBtn">Start Quiz</button>
+    </div>
+
+    <section class="grid">
+      <div class="card subject" data-subject="Physiology"><h3>Physiology</h3><p>Cardio, respiratory, renal, neuro and endocrine.</p></div>
+      <div class="card subject" data-subject="Pathology"><h3>Pathology</h3><p>Cell injury, inflammation, neoplasia and organ pathology.</p></div>
+      <div class="card subject" data-subject="Pharmacology"><h3>Pharmacology</h3><p>Mechanisms, indications and adverse effects.</p></div>
+      <div class="card subject" data-subject="Biochemistry"><h3>Biochemistry</h3><p>Metabolism, enzymes, vitamins and molecular medicine.</p></div>
+      <div class="card subject" data-subject="Microbiology"><h3>Microbiology</h3><p>Bacteria, viruses, fungi and antimicrobial principles.</p></div>
+      <div class="card subject" data-subject="Anatomy"><h3>Anatomy</h3><p>Clinically oriented gross anatomy and neuroanatomy.</p></div>
+    </section>
+
+    <section id="quiz" class="card quiz panel">
+      <div class="qhead"><div class="qmeta" id="qmeta"></div><div class="qmeta" id="score"></div></div>
+      <div class="question" id="question"></div>
+      <div class="answers" id="answers"></div>
+      <div class="explain" id="explain"></div>
+      <button class="next" id="nextBtn">Next question</button>
+    </section>
+
+    <div class="footer">Educational use only. Medical information should be checked against current trusted references.</div>
+  </main>
+
+  <script>
+    const bank = [
+      {s:'Physiology',d:'Easy',q:'Which ion is primarily responsible for the rapid depolarization phase of a ventricular action potential?',a:['Calcium','Potassium','Sodium','Chloride'],c:2,e:'Phase 0 of the ventricular myocyte action potential is caused mainly by rapid sodium influx through fast voltage-gated sodium channels.'},
+      {s:'Physiology',d:'Medium',q:'An increase in afterload most directly causes which immediate change in stroke volume?',a:['Increase','Decrease','No change','Becomes zero'],c:1,e:'A higher afterload makes ejection more difficult, so stroke volume falls acutely unless compensated by increased contractility or preload.'},
+      {s:'Pathology',d:'Easy',q:'Caseous necrosis is classically associated with which disease?',a:['Myocardial infarction','Tuberculosis','Acute pancreatitis','Brain infarction'],c:1,e:'Tuberculosis classically produces caseating granulomas with caseous necrosis.'},
+      {s:'Pathology',d:'Medium',q:'Which tumor suppressor protein is known as the “guardian of the genome”?',a:['RB','APC','p53','BRCA1'],c:2,e:'p53 responds to DNA damage by promoting cell-cycle arrest, DNA repair, senescence, or apoptosis.'},
+      {s:'Pharmacology',d:'Easy',q:'Which drug class commonly causes a dry cough by increasing bradykinin?',a:['ARBs','ACE inhibitors','Beta blockers','Thiazides'],c:1,e:'ACE inhibitors reduce bradykinin breakdown, which can cause a persistent dry cough and, rarely, angioedema.'},
+      {s:'Pharmacology',d:'Medium',q:'Which antidote is used for acetaminophen toxicity?',a:['Naloxone','Atropine','N-acetylcysteine','Flumazenil'],c:2,e:'N-acetylcysteine replenishes glutathione and detoxifies the toxic metabolite NAPQI.'},
+      {s:'Biochemistry',d:'Easy',q:'The rate-limiting enzyme of glycolysis is:',a:['Hexokinase','Phosphofructokinase-1','Pyruvate kinase','Glucose-6-phosphatase'],c:1,e:'PFK-1 is the major rate-limiting enzyme of glycolysis and is strongly regulated by the cell’s energy state.'},
+      {s:'Biochemistry',d:'Medium',q:'Which vitamin is a cofactor for pyruvate dehydrogenase?',a:['Vitamin C','Thiamine (B1)','Vitamin K','Biotin only'],c:1,e:'Pyruvate dehydrogenase requires thiamine pyrophosphate, lipoic acid, CoA, FAD, and NAD+.'},
+      {s:'Microbiology',d:'Easy',q:'Which organism is classically catalase positive and coagulase positive?',a:['Staphylococcus aureus','Staphylococcus epidermidis','Streptococcus pyogenes','Enterococcus faecalis'],c:0,e:'Staphylococcus aureus is catalase positive and coagulase positive.'},
+      {s:'Microbiology',d:'Medium',q:'Which bacterial structure is most associated with endotoxin activity?',a:['Capsule','Peptidoglycan','Lipopolysaccharide','Flagellin only'],c:2,e:'The lipid A portion of lipopolysaccharide in gram-negative bacteria mediates endotoxin effects.'},
+      {s:'Anatomy',d:'Easy',q:'Which nerve is most commonly injured in a fracture of the surgical neck of the humerus?',a:['Radial nerve','Median nerve','Axillary nerve','Ulnar nerve'],c:2,e:'The axillary nerve and posterior circumflex humeral artery course near the surgical neck of the humerus.'},
+      {s:'Anatomy',d:'Medium',q:'The recurrent laryngeal nerve is a branch of which cranial nerve?',a:['CN V','CN VII','CN IX','CN X'],c:3,e:'The recurrent laryngeal nerve is a branch of the vagus nerve (cranial nerve X).'}
+    ];
+    let quiz=[],i=0,score=0,total=0,right=0;
+    const $=id=>document.getElementById(id);
+    function save(){localStorage.setItem('medq_stats',JSON.stringify({total,right}));renderStats()}
+    function load(){const x=JSON.parse(localStorage.getItem('medq_stats')||'{}');total=x.total||0;right=x.right||0;renderStats()}
+    function renderStats(){$('done').textContent=total;$('correct').textContent=right;$('accuracy').textContent=total?Math.round(right/total*100)+'%':'0%'}
+    function start(subject){const diff=$('difficulty').value;quiz=bank.filter(x=>(subject==='all'||x.s===subject)&&(diff==='Mixed difficulty'||x.d===diff));if(!quiz.length){quiz=bank.filter(x=>subject==='all'||x.s===subject)}quiz=quiz.sort(()=>Math.random()-.5).slice(0,10);i=0;score=0;$('quiz').classList.add('active');renderQ();$('quiz').scrollIntoView({behavior:'smooth'})}
+    function renderQ(){const x=quiz[i];if(!x){$('question').textContent=`Quiz complete — ${score}/${quiz.length}`;$('answers').innerHTML='';$('qmeta').textContent='Finished';$('score').textContent=Math.round(score/quiz.length*100)+'%';$('explain').classList.remove('show');$('nextBtn').classList.remove('show');return}$('qmeta').textContent=`${x.s} • ${x.d} • Question ${i+1}/${quiz.length}`;$('score').textContent=`Score ${score}`;$('question').textContent=x.q;$('answers').innerHTML='';$('explain').classList.remove('show');$('nextBtn').classList.remove('show');x.a.forEach((t,idx)=>{const b=document.createElement('button');b.className='ans';b.textContent=String.fromCharCode(65+idx)+'. '+t;b.onclick=()=>answer(idx,b);$('answers').appendChild(b)})}
+    function answer(idx,btn){const x=quiz[i];[...document.querySelectorAll('.ans')].forEach((b,j)=>{b.disabled=true;if(j===x.c)b.classList.add('correct')});total++;if(idx===x.c){score++;right++}else btn.classList.add('wrong');$('explain').textContent=x.e;$('explain').classList.add('show');$('nextBtn').classList.add('show');save()}
+    $('nextBtn').onclick=()=>{i++;renderQ()};$('startBtn').onclick=()=>start($('subjectSelect').value);document.querySelectorAll('.subject').forEach(c=>c.onclick=()=>{const s=c.dataset.subject;$('subjectSelect').value=s;start(s)});load();
+  </script>
+</body>
+</html>
