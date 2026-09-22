@@ -1,0 +1,41 @@
+name: Fix iPad Safari File Picker
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fix-ios-picker.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace label-based picker with direct button click
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('courses.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('<input id="picker" type="file" multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"><label class="btn primary" for="picker">＋ اختيار ملف من الجهاز</label>', '<input id="picker" type="file" multiple style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0"><button type="button" class="btn primary" id="pickFilesBtn">＋ اختيار ملف من الجهاز</button>', 1)
+          s=s.replace('<input id="quick" type="file" multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">', '<input id="quick" type="file" multiple style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0">', 1)
+          s=s.replace('<label class="btn light" for="quick" onclick="quickId=\'${c.id}\'">＋ إضافة ملف</label>', '<button type="button" class="btn light" onclick="openQuickPicker(\'${c.id}\')">＋ إضافة ملف</button>', 1)
+          marker="$('picker').addEventListener('change',async e=>{let files=Array.from(e.target.files||[]);e.target.value='';await addFiles(files,current)});"
+          replacement="$('pickFilesBtn').addEventListener('click',()=>{let p=$('picker');p.value='';p.click()});function openQuickPicker(id){quickId=id;let q=$('quick');q.value='';q.click()}window.openQuickPicker=openQuickPicker;"+marker
+          if marker not in s:
+              raise SystemExit('picker handler not found')
+          s=s.replace(marker,replacement,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify
+        run: |
+          grep -q 'id="pickFilesBtn"' courses.html
+          grep -q "p.click()" courses.html
+          grep -q 'openQuickPicker' courses.html
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add courses.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix iPad Safari file picker'
+          git push
