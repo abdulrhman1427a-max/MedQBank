@@ -1,0 +1,32 @@
+name: Fix NoviStudy PDF fullscreen
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-pdf-fullscreen.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch courses viewer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('courses.html')
+          s=p.read_text()
+          old="$('pdfView').hidden=false;$('pdfView').src=objectUrl+'#view=FitH&toolbar=0&navpanes=0'"
+          new="$('pdfView').hidden=false;$('pdfView').src='pdf-viewer.html?id='+encodeURIComponent(editId)"
+          if old not in s:
+              raise SystemExit('Target PDF viewer code not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "NoviStudy Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add courses.html
+          git commit -m "Render PDFs full width on iPad" || exit 0
+          git push
