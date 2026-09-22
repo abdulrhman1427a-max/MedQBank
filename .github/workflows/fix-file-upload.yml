@@ -1,0 +1,50 @@
+name: Fix File Upload
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fix-file-upload.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch upload storage and picker handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('courses.html')
+          s=p.read_text(encoding='utf-8')
+          old="""function db(){return new Promise((ok,no)=>{let r=indexedDB.open('NoviStudyFiles',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}async function putBlob(id,b){let d=await db(),t=d.transaction('files','readwrite');t.objectStore('files').put(b,id)}async function getBlob(id){let d=await db();return new Promise(ok=>{let r=d.transaction('files').objectStore('files').get(id);r.onsuccess=()=>ok(r.result)})}
+          async function addFiles(list,c){for(const f of list){let id='f'+Date.now()+Math.random().toString(36).slice(2);await putBlob(id,f);c.items.push({fileId:id,fileName:f.name,fileType:f.type,status:'incomplete'})}save();if(current===c)renderFiles();render()}
+          $('picker').onchange=e=>addFiles([...e.target.files],current);$('quick').onchange=e=>{let c=courses.find(x=>x.id===quickId);if(c)addFiles([...e.target.files],c);e.target.value=''};$('search').oninput=render;"""
+          new="""const DB_NAME='NoviStudyFiles',DB_VERSION=2,STORE='files';
+          function db(){return new Promise((ok,no)=>{if(!('indexedDB' in window))return no(new Error('IndexedDB غير مدعوم'));let r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{let d=r.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE)};r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error||new Error('تعذر فتح قاعدة الملفات'));r.onblocked=()=>no(new Error('قاعدة الملفات مستخدمة في تبويب آخر'))})}
+          async function putBlob(id,b){let d=await db();return new Promise((ok,no)=>{let t=d.transaction(STORE,'readwrite');t.objectStore(STORE).put(b,id);t.oncomplete=()=>{d.close();ok()};t.onerror=()=>{let e=t.error;d.close();no(e)};t.onabort=()=>{let e=t.error;d.close();no(e)}})}
+          async function getBlob(id){let d=await db();return new Promise((ok,no)=>{let t=d.transaction(STORE,'readonly'),r=t.objectStore(STORE).get(id);r.onsuccess=()=>{let v=r.result;d.close();ok(v)};r.onerror=()=>{let e=r.error;d.close();no(e)}})}
+          async function addFiles(list,c){if(!c||!list||!list.length)return;let added=0;try{c.items=c.items||[];for(const f of list){if(!f||!f.name)continue;let id='f'+Date.now().toString(36)+Math.random().toString(36).slice(2);await putBlob(id,f);c.items.push({fileId:id,fileName:f.name,fileType:f.type||'application/octet-stream',fileSize:f.size||0,status:'incomplete'});added++}save();if(current&&current.id===c.id)renderFiles();render();if(added)toastMessage('تمت إضافة '+added+' ملف بنجاح')}catch(err){console.error('File upload failed',err);alert('تعذر إضافة الملف. تأكد أن التصفح الخاص غير مفعّل وأن هناك مساحة تخزين كافية، ثم حاول مرة أخرى.')}}
+          function toastMessage(msg){let t=$('toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+          $('picker').addEventListener('change',async e=>{let files=Array.from(e.target.files||[]);e.target.value='';await addFiles(files,current)});
+          $('quick').addEventListener('change',async e=>{let files=Array.from(e.target.files||[]),c=courses.find(x=>x.id===quickId);e.target.value='';quickId=null;if(c)await addFiles(files,c)});$('search').oninput=render;"""
+          if old not in s:
+              raise SystemExit('Expected upload block not found; refusing unsafe patch')
+          s=s.replace(old,new,1)
+          # Make same-file selection fire reliably and improve iOS picker compatibility.
+          s=s.replace('<input id="picker" type="file" multiple hidden>','<input id="picker" type="file" multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">',1)
+          s=s.replace('<input id="quick" type="file" multiple hidden>','<input id="quick" type="file" multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify patch
+        run: |
+          grep -q "DB_VERSION=2" courses.html
+          grep -q "تمت إضافة" courses.html
+          grep -q "e.target.value=''" courses.html
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add courses.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix file selection and local file storage'
+          git push
